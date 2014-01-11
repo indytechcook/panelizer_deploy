@@ -1,0 +1,215 @@
+<?php
+
+/**
+ * Implements hook_deploy_entity_dependencies().
+ */
+function panelizer_deploy_entity_dependencies($entity, $entity_type) {
+  if (panelizer_deploy_is_panelizer($entity, $entity_type)) {
+    $info = entity_get_info();
+    $entity_keys = array_keys($info);
+
+    ctools_include('content');
+    $dependencies = array();
+    foreach ($entity->panelizer as $view_mode) {
+      foreach ($view_mode->display->content as $pid => $pane) {
+        if ($pane->type == 'fieldable_panels_pane') {
+          list($idtype, $id) = explode(':', $pane->subtype);
+          if ($idtype == 'fpid') {
+            entity_dependency_add($dependencies, (object)array('fpid' => $id), 'fieldable_panels_pane', 'fpid');
+          }
+          else {
+            $ids = entity_get_id_by_uuid('fieldable_panels_pane', array($id));
+            entity_dependency_add($dependencies, (object)array('fpid' => reset($ids)), 'fieldable_panels_pane', 'fpid');
+          }
+        } elseif (isset($entity_keys[$pane->type]) && $pane->type == $pane->subtype) {
+          // Does this entity support uuid
+          // Does this catch more then node?
+          if (isset($info[$pane->type]['entity keys']['uuid'])) {
+            entity_dependency_add(
+              $dependencies,
+              (object) $pane->configuration,
+              $pane->type,
+              $info[$pane->type]['entity keys']['id']);
+          }
+        }
+
+        if (!empty($pane->contexts)) {
+          foreach ($pane->contexts as $id => $context) {
+            if ($matches = panelizer_deploy_get_entity_ids_from_context($context)) {
+              entity_dependency_add($dependencies, (object)$context, $matches[1], 'entity_id');
+            }
+          }
+        }
+      }
+    }
+
+    return $dependencies;
+  }
+}
+
+/**
+ * Get the entity id's from a context
+ *
+ * @param $context string
+ * @return array
+ */
+function panelizer_deploy_get_entity_ids_from_context($context) {
+  preg_match('/^entity:(\w+)$/', $context['name'], $matches);
+  return $matches;
+}
+
+/**
+ * Is this entity panelized
+ *
+ * @param $entity stdClass
+ * @param $entity_type string
+ * @return boolean|PanelizerEntityInterface
+ */
+function panelizer_deploy_is_panelizer($entity, $entity_type) {
+  $static = &drupal_static(__FUNCTION__, array());
+
+  if (!isset($static[$entity_type])) {
+    $static[$entity_type] = array();
+  }
+
+  list($id, $vid, $bundle) = entity_extract_ids($entity_type, $entity);
+
+  if (!isset($static[$entity_type][$bundle])) {
+    if ($handler = panelizer_entity_plugin_get_handler($entity_type)) {
+      // Get all of the entity types that have uuid enables
+
+      if ($handler->is_panelized($bundle)) {
+        $static[$entity_type][$bundle] = $handler;
+      } else {
+        $static[$entity_type][$bundle] = FALSE;
+      }
+    } else {
+      $static[$entity_type][$bundle] = FALSE;
+    }
+  }
+
+
+  return $static[$entity_type][$bundle];
+}
+
+
+/**
+ * Implements hook_entity_uuid_load().
+ */
+function panelizer_deploy_entity_uuid_load(&$entities, $entity_type) {
+  $tracker = new PanelizerDeployUUIDTracker();
+  foreach($entities as &$entity) {
+    if (panelizer_deploy_is_panelizer($entity, $entity_type)) {
+
+      // get the uuid key for this entity
+      // The uuid should already be set on the entity
+      $info = entity_get_info();
+      $entity_keys = array_keys($info);
+
+      foreach ($entity->panelizer as &$view_mode) {
+        // If this is not a new panel
+        if ($view_mode->did) {
+
+          $view_mode->entity_id = $entity->{$info[$entity_type]['entity keys']['uuid']};
+
+          if (isset($view_mode->revision_id) && isset($info[$entity_type]['entity keys']['revision uuid'])) {
+            $view_mode->revision_id = $entity->{$info[$entity_type]['entity keys']['revision uuid']};
+          }
+
+          // update display id
+          $view_mode->did = $view_mode->display->uuid;
+          $view_mode->display->did = $view_mode->display->uuid;
+
+          // Update the panes
+          $new_panes = array();
+          foreach ($view_mode->display->content as $pid => $pane) {
+            $new_pane = $view_mode->display->clone_pane($pid);
+
+            // uuid pane and display
+            $new_pane->pid = $new_pane->uuid;
+            $new_pane->did = $view_mode->display->uuid;
+
+            //@TODO perhaps turn this into a plugin system?
+            // From other entities
+            // Does this catch more then node?
+            if (isset($entity_keys[$pane->type]) && $pane->type == $pane->subtype) {
+              // Does this entity support uuid
+              if (isset($info[$pane->type]['entity keys']['uuid'])) {
+                $type_info = $info[$pane->type];
+                if (is_numeric($pane->configuration[$type_info['entity keys']['id']])) {
+                  $tracker->addEntity($pane->conifuration, $pane->type, $type_info['entity keys']['id']);
+                }
+              }
+            }
+
+            if (!empty($pane->contexts)) {
+              foreach ($pane->contexts as $id => $context) {
+                if ($matches = panelizer_deploy_get_entity_ids_from_context($context)) {
+                  $tracker->addEntity($context, $matches[1], 'entity_id');
+                }
+              }
+            }
+
+            $new_panes[$new_pane->pid] = $new_pane;
+          }
+
+          // Update the panels
+          foreach ($view_mode->display->panels as &$panel) {
+            foreach ($panel as &$pid) {
+              $pid = $view_mode->display->content[$pid]->uuid;
+            }
+          }
+
+          $view_mode->display->content = $new_panes;
+        }
+      }
+    }
+  }
+
+  $tracker->convertToUUID();
+}
+
+/**
+ * Class which tracks the id to uuid conversion
+ */
+class PanelizerDeployUUIDTracker {
+  protected $entity_types = array();
+  protected $map = array();
+
+  public function addEntity(&$entity, $type, $key) {
+    if (is_array($entity)) {
+      foreach ($entity as &$thing) {
+        $this->map[$type][$thing->key] = &$thing;
+      }
+    } else {
+      $this->map[$type][$entity->key] = &$entity;
+    }
+
+    $this->entity_types[$type] = $key;
+  }
+
+  public function convertToUUID() {
+    foreach ($this->map as $type => &$objects) {
+      entity_property_id_to_uuid($objects, $type, $this->map[$type]);
+    }
+  }
+
+  public function convertToId() {
+    foreach ($this->map as $type => &$objects) {
+      entity_property_uuid_to_id($objects, $type, $this->map[$type]);
+    }
+  }
+
+  public function getEntity($type, $id) {
+    return $this->map[$type][$id];
+  }
+}
+
+/**
+ * Implements hook_entity_uuid_presave().
+ */
+function panelizer_entity_uuid_presave(&$entity, $entity_type) {
+    if (panelizer_deploy_is_panelizer($entity, $entity_type)) {
+
+    }
+}

@@ -1,0 +1,5 @@
+name = Panels Deploy integration
+description = Panelizer integration with the deploy
+core = 7.x
+dependencies[] = panelizer
+dependencies[] = panels_uuid
