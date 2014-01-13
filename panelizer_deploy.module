@@ -1,5 +1,13 @@
 <?php
 
+xautoload()->registerModulePsr4(__FILE__, 'src');
+
+use Drupal\panelizer_deploy\Converter;
+use Drupal\panelizer_deploy\ConverterException;
+use Drupal\panelizer_deploy\DisplayConverter;
+use Drupal\panelizer_deploy\EntityConverter;
+use Drupal\panelizer_deploy\PaneConverter;
+
 /**
  * Implements hook_deploy_entity_dependencies().
  */
@@ -97,7 +105,10 @@ function panelizer_deploy_is_panelizer($entity, $entity_type) {
  * Implements hook_entity_uuid_load().
  */
 function panelizer_deploy_entity_uuid_load(&$entities, $entity_type) {
-  $tracker = new PanelizerDeployUUIDTracker();
+  $converter = new Converter();
+  $converter->addConverterType(new PaneConverter(), "panels_pane");
+  $converter->addConverterType(new DisplayConverter(), "panels_display");
+
   foreach($entities as &$entity) {
     if (panelizer_deploy_is_panelizer($entity, $entity_type)) {
 
@@ -107,7 +118,7 @@ function panelizer_deploy_entity_uuid_load(&$entities, $entity_type) {
       $entity_keys = array_keys($info);
 
       foreach ($entity->panelizer as &$view_mode) {
-        // If this is not a new panel
+        // If this is not a custom panel
         if ($view_mode->did) {
 
           $view_mode->entity_id = $entity->{$info[$entity_type]['entity keys']['uuid']};
@@ -117,40 +128,54 @@ function panelizer_deploy_entity_uuid_load(&$entities, $entity_type) {
           }
 
           // update display id
+          // No need for the converter here since we know it's part of the object
           $view_mode->did = $view_mode->display->uuid;
           $view_mode->display->did = $view_mode->display->uuid;
 
-          // Update the panes
           $new_panes = array();
-          foreach ($view_mode->display->content as $pid => $pane) {
+          foreach ($view_mode->display->content as $pid => &$doNotUse) {
             $new_pane = $view_mode->display->clone_pane($pid);
 
             // uuid pane and display
             $new_pane->pid = $new_pane->uuid;
             $new_pane->did = $view_mode->display->uuid;
 
-            //@TODO perhaps turn this into a plugin system?
             // From other entities
             // Does this catch more then node?
-            if (isset($entity_keys[$pane->type]) && $pane->type == $pane->subtype) {
+            if (isset($entity_keys[$new_pane->type]) && $new_pane->type == $new_pane->subtype) {
               // Does this entity support uuid
-              if (isset($info[$pane->type]['entity keys']['uuid'])) {
-                $type_info = $info[$pane->type];
-                if (is_numeric($pane->configuration[$type_info['entity keys']['id']])) {
-                  $tracker->addEntity($pane->conifuration, $pane->type, $type_info['entity keys']['id']);
+              if (isset($info[$new_pane->type]['entity keys']['uuid'])) {
+                $type_info = $info[$new_pane->type];
+                if (is_numeric($new_pane->configuration[$type_info['entity keys']['id']])) {
+                  $converter_key = "entity-{$new_pane->type}";
+                  try {
+                    $converter->getConverterType($converter_key);
+                  } catch (ConverterException $e) {
+                    $converter->addConverterType(new EntityConverter($new_pane->type), $converter_key);
+                  }
+
+                  $converter->addObject($new_pane->configuration, $converter_key);
                 }
               }
             }
 
-            if (!empty($pane->contexts)) {
-              foreach ($pane->contexts as $id => $context) {
+            /* @TODO this needs reworking
+            if (!empty($new_pane->contexts)) {
+              foreach ($new_pane->contexts as $id => $context) {
                 if ($matches = panelizer_deploy_get_entity_ids_from_context($context)) {
-                  $tracker->addEntity($context, $matches[1], 'entity_id');
+                  $converter_key = "entity-{$context[1]}";
+                  try {
+                    $converter->getConverterType($converter_key);
+                  } catch (ConverterException $e) {
+                    $converter->addConverterType(new EntityConverter($new_pane->type), $converter_key);
+                  }
+
+                  $converter->addObject($context, $converter_key);
                 }
               }
-            }
+            }*/
 
-            $new_panes[$new_pane->pid] = $new_pane;
+            $new_panes[$new_pane->uuid] = $new_pane;
           }
 
           // Update the panels
@@ -166,50 +191,93 @@ function panelizer_deploy_entity_uuid_load(&$entities, $entity_type) {
     }
   }
 
-  $tracker->convertToUUID();
-}
-
-/**
- * Class which tracks the id to uuid conversion
- */
-class PanelizerDeployUUIDTracker {
-  protected $entity_types = array();
-  protected $map = array();
-
-  public function addEntity(&$entity, $type, $key) {
-    if (is_array($entity)) {
-      foreach ($entity as &$thing) {
-        $this->map[$type][$thing->key] = &$thing;
-      }
-    } else {
-      $this->map[$type][$entity->key] = &$entity;
-    }
-
-    $this->entity_types[$type] = $key;
-  }
-
-  public function convertToUUID() {
-    foreach ($this->map as $type => &$objects) {
-      entity_property_id_to_uuid($objects, $type, $this->map[$type]);
-    }
-  }
-
-  public function convertToId() {
-    foreach ($this->map as $type => &$objects) {
-      entity_property_uuid_to_id($objects, $type, $this->map[$type]);
-    }
-  }
-
-  public function getEntity($type, $id) {
-    return $this->map[$type][$id];
-  }
+  $converter->convertToUUID();
 }
 
 /**
  * Implements hook_entity_uuid_presave().
  */
 function panelizer_entity_uuid_presave(&$entity, $entity_type) {
-    if (panelizer_deploy_is_panelizer($entity, $entity_type)) {
+  if (panelizer_deploy_is_panelizer($entity, $entity_type)) {
+    $converter = new Converter();
+    $converter->addConverterType(new PaneConverter(), "panels-pane")
+      ->addConverterType(new DisplayConverter(), "panels-display")
+      ->addConverterType(new PaneConverter(), 'panels-pane');
 
+
+    $info = entity_get_info();
+    $entity_keys = array_keys($info);
+
+    foreach ($entity->panelizer as &$view_mode) {
+      // If this is not a custom panel
+      if ($view_mode->did) {
+
+        $view_mode->entity_id = $entity->{$info[$entity_type]['entity keys']['id']};
+
+        if (isset($view_mode->revision_id) && isset($info[$entity_type]['entity keys']['revision'])) {
+          $view_mode->revision_id = $entity->{$info[$entity_type]['entity keys']['revision']};
+        }
+
+        // update display id
+        // No need for the converter here since we know it's part of the object
+        $converter->addObject($view_mode, 'panels_display');
+        $converter->addObject($view_mode->display, 'panels_display');
+
+        $new_panes = array();
+        foreach ($view_mode->display->content as $pid => &$doNotUse) {
+          $new_pane = $view_mode->display->clone_pane($pid);
+
+          // uuid pane and display
+          $converter->addObject($new_pane, 'panels_pane');
+          $converter->addObject($new_pane, 'panels_display');
+
+          // From other entities
+          // Does this catch more then node?
+          if (isset($entity_keys[$new_pane->type]) && $new_pane->type == $new_pane->subtype) {
+            // Does this entity support uuid
+            if (isset($info[$new_pane->type]['entity keys']['uuid'])) {
+              $converter_key = "entity-{$new_pane->type}";
+              try {
+                $converter->getConverterType($converter_key);
+              } catch (ConverterException $e) {
+                $converter->addConverterType(new EntityConverter($new_pane->type), $converter_key);
+              }
+
+              $converter->addObject($new_pane->configuration, $converter_key);
+            }
+          }
+
+          /* @todo this needs reworking
+          if (!empty($new_pane->contexts)) {
+            foreach ($new_pane->contexts as $id => $context) {
+              if ($matches = panelizer_deploy_get_entity_ids_from_context($context)) {
+                $converter_key = "entity-{$context[1]}";
+                try {
+                  $converter->getConverterType($converter_key);
+                } catch (ConverterException $e) {
+                  $converter->addConverterType(new EntityConverter($new_pane->type), $converter_key);
+                }
+
+                $converter->addObject($context, $converter_key);
+              }
+            }
+          }*/
+
+          $new_panes[$new_pane->uuid] = $new_pane;
+        }
+
+        // Update the panels
+        foreach ($view_mode->display->panels as &$panel) {
+          foreach ($panel as &$pid) {
+            $pid = $view_mode->display->content[$pid]->pid;
+          }
+        }
+
+        $view_mode->display->content = $new_panes;
+      }
     }
+  }
+
+  $converter->convertToID();
 }
+
