@@ -2,32 +2,37 @@
 
 namespace Drupal\panelizer_deploy;
 
-class PaneConverter implements ConverterInterface {
-
-  /**
-   * Run a conversion to UUID
-   *
-   * @param array $objects
-   */
-  public function convertToUUID(&$objects) {
-    \panels_uuid_convert_pane_to_uuid($objects);
-  }
-
-  /**
-   * Run a conversion to Id
-   *
-   * @param array $objects
-   */
-  public function convertToID(&$objects) {
-    \panels_uuid_convert_pane_to_id($objects);
-  }
-
+class PaneConverter extends AbstractConverter implements ConverterInterface {
   /**
    * Get the key for the object
    *
-   * @param $object
+   * @return string
    */
-  public function getKeyField($object) {
-    return $object->pid;
+  public function getKeyField() {
+    return "pid";
+  }
+
+  /**
+   * Convert an array of ids to ids => uuids
+   *
+   * @param $ids
+   *   array of ids
+   * @return array
+   *   array of id => uuid
+   */
+  protected function convertUUIDs($ids) {
+    return $this->queryHelper("panels_pane", 'pid', 'uuid', $ids);
+  }
+
+  /**
+   * Convert an array of ids to uuid => id
+   *
+   * @param $uuids
+   *   array of uuids
+   * @return array
+   *   array of uuid => id
+   */
+  protected function convertIds($uuids) {
+    return $this->queryHelper("panels_pane", 'uuid', 'pid', $uuids);
   }
 }

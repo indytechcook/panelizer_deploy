@@ -6,29 +6,16 @@ namespace Drupal\panelizer_deploy;
 class EntityContextConverter extends EntityConverter implements ConverterInterface {
 
   /**
-   * Run a conversion to UUID
+   * Override the preconvert.
+   *
+   * The objects will be ctools context arrays
    *
    * @param array $objects
+   * @param $key_field
+   * @return array
    */
-  public function convertToUUID(&$objects) {
-    // TODO: Implement convertToUUID() method.
+  protected function preConvert(&$objects, $key_field) {
+
   }
 
-  /**
-   * Run a conversion to Id
-   *
-   * @param array $objects
-   */
-  public function convertToID(&$objects) {
-    // TODO: Implement convertToID() method.
-  }
-
-  /**
-   * Get the key for the object
-   *
-   * @param $object
-   */
-  public function getKeyField($object) {
-    // TODO: Implement getKeyField() method.
-  }
 }

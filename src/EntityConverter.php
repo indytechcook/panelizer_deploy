@@ -2,26 +2,46 @@
 
 namespace Drupal\panelizer_deploy;
 
-class EntityConverter implements ConverterInterface {
+class EntityConverter extends AbstractConverter implements ConverterInterface {
   protected $entity_type;
 
   public function __construct($entity_type) {
     $this->entity_type = $entity_type;
   }
 
-  public function getKeyField($object) {
+  public function getKeyField() {
     $info = \entity_get_info($this->entity_type);
 
-    return $object->{$info['entity keys']['id']};
+    return $info['entity keys']['id'];
   }
 
-  public function convertToUUID(&$objects) {
+  public function getUUIDField() {
     $info = \entity_get_info($this->entity_type);
-    \entity_property_id_to_uuid($objects, $this->entity_type, $info['entity keys']['id']);
+
+    return $info['entity keys']['uuid'];
   }
 
-  public function convertToID(&$objects) {
-    $info = \entity_get_info($this->entity_type);
-    \entity_property_uuid_to_id($objects, $this->entity_type, $info['entity keys']['id']);
+  /**
+   * Convert an array of ids to ids => uuids
+   *
+   * @param $ids
+   *   array of ids
+   * @return array
+   *   array of id => uuid
+   */
+  protected function convertUUIDs($ids) {
+    return \entity_get_uuid_by_id($this->entity_type, $ids);
+  }
+
+  /**
+   * Convert an array of ids to uuid => id
+   *
+   * @param $uuids
+   *   array of uuids
+   * @return array
+   *   array of uuid => id
+   */
+  protected function convertIds($uuids) {
+    return \entity_get_id_by_uuid($this->entity_type, $uuids);
   }
 }

@@ -18,9 +18,16 @@ interface ConverterInterface {
   public function convertToID(&$objects);
 
   /**
-   * Get the key for the object
+   * Get the name of the key
    *
-   * @param $object
+   * @return string
    */
-  public function getKeyField($object);
+  public function getKeyField();
+
+  /**
+   * Get the name of the uuid field
+   *
+   * @return string
+   */
+  public function getUUIDField();
 }
