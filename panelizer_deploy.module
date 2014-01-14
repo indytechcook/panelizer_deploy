@@ -2,7 +2,7 @@
 
 xautoload()->registerModulePsr4(__FILE__, 'src');
 
-use Drupal\panelizer_deploy\Converter;
+use Drupal\panelizer_deploy\ConverterMap;
 use Drupal\panelizer_deploy\ConverterException;
 use Drupal\panelizer_deploy\DisplayConverter;
 use Drupal\panelizer_deploy\EntityConverter;
@@ -105,7 +105,7 @@ function panelizer_deploy_is_panelizer($entity, $entity_type) {
  * Implements hook_entity_uuid_load().
  */
 function panelizer_deploy_entity_uuid_load(&$entities, $entity_type) {
-  $converter = new Converter();
+  $converter = new ConverterMap();
   $converter->addConverterType(new PaneConverter(), "panels_pane");
   $converter->addConverterType(new DisplayConverter(), "panels_display");
 
@@ -199,7 +199,7 @@ function panelizer_deploy_entity_uuid_load(&$entities, $entity_type) {
  */
 function panelizer_entity_uuid_presave(&$entity, $entity_type) {
   if (panelizer_deploy_is_panelizer($entity, $entity_type)) {
-    $converter = new Converter();
+    $converter = new ConverterMap();
     $converter->addConverterType(new PaneConverter(), "panels-pane")
       ->addConverterType(new DisplayConverter(), "panels-display")
       ->addConverterType(new PaneConverter(), 'panels-pane');

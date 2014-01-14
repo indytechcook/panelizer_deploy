@@ -5,7 +5,7 @@ namespace Drupal\panelizer_deploy;
 /**
  * Class which tracks the id to uuid conversion
  */
-class Converter {
+class ConverterMap {
   protected $type_map = array();
   protected $object_map = array();
 
@@ -15,7 +15,7 @@ class Converter {
    * @param ConverterInterface $type
    * @param string $key
    *
-   * @return Converter
+   * @return ConverterMap
    */
   function addConverterType(ConverterInterface $type, $key) {
     $this->type_map[$key] = $type;
