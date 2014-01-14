@@ -289,7 +289,7 @@ function panelizer_entity_uuid_presave(&$entity, $entity_type) {
       // Update the panels
       foreach ($view_mode->display->panels as &$panel) {
         foreach ($panel as &$uuid) {
-          $pid = $view_mode->display->content[$uuid]->pid;
+          $uuid = $view_mode->display->content[$uuid]->pid;
         }
       }
 
