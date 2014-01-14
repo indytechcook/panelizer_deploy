@@ -15,7 +15,14 @@ class EntityContextConverter extends EntityConverter implements ConverterInterfa
    * @return array
    */
   protected function preConvert(&$objects, $key_field) {
+    $ids = array();
+    $i = 0;
+    foreach ($this->$objects as &$context) {
+      $this->refs[$i] = &$context['entity_id'];
+      $ids[] = $this->refs[$i];
+      $i++;
+    }
 
+    return $ids;
   }
-
 }
