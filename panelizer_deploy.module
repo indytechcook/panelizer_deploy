@@ -8,6 +8,7 @@ use Drupal\panelizer_deploy\DisplayConverter;
 use Drupal\panelizer_deploy\EntityContextConverter;
 use Drupal\panelizer_deploy\EntityConverter;
 use Drupal\panelizer_deploy\PaneConverter;
+use Drupal\panelizer_deploy\PaneEntityConverter;
 
 /**
  * Implements hook_deploy_entity_dependencies().
@@ -111,7 +112,7 @@ function panelizer_deploy_entity_uuid_load(&$entities, $entity_type) {
   $converter = new ConverterMap();
   $converter->addConverterType(new PaneConverter(), "panels_pane")
     ->addConverterType(new DisplayConverter(), "panels_display")
-    ->addConverterType(new EntityConverter($entity_type), $main_entity_converter_key);
+    ->addConverterType(new PaneEntityConverter($entity_type), $main_entity_converter_key);
 
   foreach($entities as &$entity) {
     if (panelizer_deploy_is_panelizer($entity, $entity_type)) {
@@ -213,7 +214,7 @@ function panelizer_entity_uuid_presave(&$entity, $entity_type) {
     $converter->addConverterType(new PaneConverter(), "panels-pane")
       ->addConverterType(new DisplayConverter(), "panels-display")
       ->addConverterType(new PaneConverter(), 'panels-pane')
-      ->addConverterType(new EntityConverter($entity_type), $main_entity_converter_key);
+      ->addConverterType(new PaneEntityConverter($entity_type), $main_entity_converter_key);
 
 
     $info = entity_get_info();
@@ -234,7 +235,6 @@ function panelizer_entity_uuid_presave(&$entity, $entity_type) {
         $converter->addObject($view_mode, 'panels_display');
         $converter->addObject($view_mode->display, 'panels_display');
 
-        $new_panes = array();
         foreach ($view_mode->display->content as $pid => $pane) {
           // uuid pane and display
           $converter->addObject($pane, 'panels_pane');
@@ -293,7 +293,7 @@ function panelizer_entity_uuid_presave(&$entity, $entity_type) {
         }
       }
 
-      // We only want the uuid keys
+      // We only want the id keys
       $view_mode->display->content = array_intersect_key($view_mode->display->content, array_flip($allowed_keys));
     }
   }
