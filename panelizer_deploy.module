@@ -1,7 +1,5 @@
 <?php
 
-xautoload()->registerModulePsr4(__FILE__, 'src');
-
 use Drupal\panelizer_deploy\ConverterMap;
 use Drupal\panelizer_deploy\ConverterException;
 use Drupal\panelizer_deploy\DisplayConverter;

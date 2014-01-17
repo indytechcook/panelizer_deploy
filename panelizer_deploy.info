@@ -4,3 +4,12 @@ core = 7.x
 dependencies[] = panelizer
 dependencies[] = panels_uuid
 php = 5.3
+
+files[] = src\AbstractConverter.php
+files[] = src\ConverterInterface.php
+files[] = src\ConverterMap.php
+files[] = src\DisplayConverter.php
+files[] = src\EntityContextConverter.php
+files[] = src\EntityConverter.php
+files[] = src\PaneConverter.php
+files[] = src\PaneEntityConverter.php
