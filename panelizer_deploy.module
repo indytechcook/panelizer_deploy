@@ -8,6 +8,9 @@ use Drupal\panelizer_deploy\EntityConverter;
 use Drupal\panelizer_deploy\PaneConverter;
 use Drupal\panelizer_deploy\PaneEntityConverter;
 
+//@TODO maybe use composer_manager
+xautoload()->registerModulePsr4(__FILE__, 'src');
+
 /**
  * Implements hook_deploy_entity_dependencies().
  */
@@ -296,4 +299,3 @@ function panelizer_entity_uuid_presave(&$entity, $entity_type) {
     }
   }
 }
-
