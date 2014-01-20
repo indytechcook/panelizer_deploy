@@ -225,36 +225,11 @@ function panelizer_deploy_entity_uuid_load(&$entities, $entity_type) {
   $converter->convertToUUID();
 }
 
-function panelizer_deploy_convert_to_object(&$entity) {
-  // services json interface sets all objects to associated arrays using json_decode
-  // We need to turn them back to objects before we do anything else.
-  $panelizers = array();
-  foreach ($entity->panelizer as $panelizer_id => $panelizer) {
-    if (is_array($panelizer)) {
-      $panelizer_obj = (object) $panelizer;
-      $panelizer_obj->display = (object) $panelizer_obj->display;
-
-      $panes = array();
-      foreach ($panelizer_obj->display->content as $pid => $pane) {
-        $panes[$pid] = (object) $pane;
-      }
-
-      $panelizer_obj->display->content = $panes;
-      $panelizers[$panelizer_id] = $panelizer_obj;
-    }
-  }
-
-  // We we did a converstion then replace the originals
-  if (!empty($panelizers)) {
-    $entity->panelizers = $panelizers;
-  }
-}
-
 /**
  * Implements hook_entity_uuid_presave().
  */
 function panelizer_deploy_entity_uuid_presave(&$entity, $entity_type) {
-  dd("********************* hook_entity_uuid_presave ***************************************");
+  //dd("********************* hook_entity_uuid_presave ***************************************");
   if (panelizer_deploy_is_panelizer($entity, $entity_type)) {
     if (is_string($entity->panelizer)) {
       $entity->panelizer = unserialize($entity->panelizer);
@@ -273,14 +248,14 @@ function panelizer_deploy_entity_uuid_presave(&$entity, $entity_type) {
 
     foreach ($entity->panelizer as &$view_mode) {
       // If the did is empty then we need to unset the name so panelizer will save the custom display
-      if (!empty($view_mode->name)) {
+      if (!empty($view_mode->did)) {
         unset($view_mode->name);
       }
 
       $converter->addObject($view_mode, $main_entity_converter_key);
 
       if (isset($view_mode->revision_id) && isset($info[$entity_type]['entity keys']['revision'])) {
-        $view_mode->revision_id = $entity->{$info[$entity_type]['entity keys']['revision']};
+        $view_mode->revision_id = (int) $entity->{$info[$entity_type]['entity keys']['revision']};
       }
 
       // update display id
