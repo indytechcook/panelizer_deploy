@@ -42,6 +42,7 @@ class EntityConverter extends AbstractConverter implements ConverterInterface {
    *   array of uuid => id
    */
   protected function convertIds($uuids) {
-    return \entity_get_id_by_uuid($this->entity_type, $uuids);
+    $return = \entity_get_id_by_uuid($this->entity_type, $uuids);
+    return $return;
   }
 }
