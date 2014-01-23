@@ -25,10 +25,9 @@ abstract class AbstractConverter implements ConverterInterface {
    * tracking of ids and references
    *
    * @param $objects array
-   * @param $key_field
    * @return array
    */
-  protected function preConvert(&$objects, $key_field) {
+  protected function preConvert(&$objects) {
     if (!is_array($objects)) {
       $things = array(&$objects);
     } else {
@@ -39,7 +38,7 @@ abstract class AbstractConverter implements ConverterInterface {
     $ids = array();
     $i = 0;
     foreach ($things as &$thing) {
-      $this->refs[$i] = &$thing->$key_field;
+      $this->refs[$i] = &$thing->{$this->getKeyField()};
       $ids[] = $this->refs[$i];
       $i++;
     }
@@ -58,6 +57,8 @@ abstract class AbstractConverter implements ConverterInterface {
     foreach ($this->refs as $i => $value) {
       if (isset($new_ids[$value])) {
         $this->refs[$i] = $new_ids[$value];
+      } else {
+        $this->refs[$i] = null;
       }
     }
   }
@@ -69,7 +70,7 @@ abstract class AbstractConverter implements ConverterInterface {
    * @param array $objects
    */
   public function convertToUUID(&$objects) {
-    $ids = $this->preConvert($objects, $this->getKeyField());
+    $ids = $this->preConvert($objects);
     $new_ids = $this->convertUUIDs($ids);
     $this->postConvert($new_ids);
   }
@@ -81,7 +82,7 @@ abstract class AbstractConverter implements ConverterInterface {
    * @param array $objects
    */
   public function convertToID(&$objects) {
-    $ids = $this->preConvert($objects, $this->getUUIDField());
+    $ids = $this->preConvert($objects);
     $new_ids = $this->convertIds($ids);
     $this->postConvert($new_ids);
   }

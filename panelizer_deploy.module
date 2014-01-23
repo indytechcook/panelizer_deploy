@@ -153,7 +153,7 @@ function panelizer_deploy_entity_uuid_load(&$entities, $entity_type) {
         }
 
         // Only update display if they have an id
-        if ($view_mode->did) {
+        if ($view_mode->did && $view_mode->display !== "new") {
           // update display id
           // No need for the converter here since we know it's part of the object
           $converter->addObject($view_mode, 'panels_display');
@@ -229,7 +229,6 @@ function panelizer_deploy_entity_uuid_load(&$entities, $entity_type) {
  * Implements hook_entity_uuid_presave().
  */
 function panelizer_deploy_entity_uuid_presave(&$entity, $entity_type) {
-  //dd("********************* hook_entity_uuid_presave ***************************************");
   if (panelizer_deploy_is_panelizer($entity, $entity_type)) {
     if (is_string($entity->panelizer)) {
       $entity->panelizer = unserialize($entity->panelizer);
@@ -247,55 +246,57 @@ function panelizer_deploy_entity_uuid_presave(&$entity, $entity_type) {
     $entity_keys = array_keys($info);
 
     foreach ($entity->panelizer as &$view_mode) {
-      // If the did is empty then we need to unset the name so panelizer will save the custom display
-      if (!empty($view_mode->did)) {
-        unset($view_mode->name);
-      }
-
       $converter->addObject($view_mode, $main_entity_converter_key);
 
       if (isset($view_mode->revision_id) && isset($info[$entity_type]['entity keys']['revision'])) {
         $view_mode->revision_id = (int) $entity->{$info[$entity_type]['entity keys']['revision']};
       }
 
-      // update display id
-      // No need for the converter here since we know it's part of the object
-      $converter->addObject($view_mode, 'panels_display');
-      $converter->addObject($view_mode->display, 'panels_display');
+      // if we have no did then there is no conversation to do
+      if ($view_mode->display->did && $view_mode->display->did !== 'new') {
 
-      foreach ($view_mode->display->content as &$pane) {
-        // uuid pane and display
-        $converter->addObject($pane, 'panels_pane');
-        $converter->addObject($pane, 'panels_display');
+        // If the did is empty then we need to unset the name so panelizer will save the custom display
+        $view_mode->name = null;
+        // Need the display_is_modified property set in order for panelizer to update the displays
+        $view_mode->display_is_modified = TRUE;
 
-        // From other entities
-        // Does this catch more then node?
-        if (isset($entity_keys[$pane->type]) && $pane->type == $pane->subtype) {
-          // Does this entity support uuid
-          if (isset($info[$pane->type]['entity keys']['uuid'])) {
-            $converter_key = "entity-{$pane->type}";
-            try {
-              $converter->getConverterType($converter_key);
-            } catch (ConverterException $e) {
-              $converter->addConverterType(new EntityConverter($pane->type), $converter_key);
-            }
+        $converter->addObject($view_mode, 'panels_display');
+        $converter->addObject($view_mode->display, 'panels_display');
 
-            $converter->addObject($pane->configuration, $converter_key);
-          }
-        }
+        foreach ($view_mode->display->content as &$pane) {
+          // uuid pane and display
+          $converter->addObject($pane, 'panels_pane');
+          $converter->addObject($pane, 'panels_display');
 
-        // Update contexts
-        if (!empty($pane->contexts)) {
-          foreach ($pane->contexts as $context) {
-            if ($matches = panelizer_deploy_get_entity_ids_from_context($context)) {
-              $converter_key = "context-entity-{$matches[1]}";
+          // From other entities
+          // Does this catch more then node?
+          if (isset($entity_keys[$pane->type]) && $pane->type == $pane->subtype) {
+            // Does this entity support uuid
+            if (isset($info[$pane->type]['entity keys']['uuid'])) {
+              $converter_key = "entity-{$pane->type}";
               try {
                 $converter->getConverterType($converter_key);
               } catch (ConverterException $e) {
-                $converter->addConverterType(new EntityContextConverter($matches[1]), $converter_key);
+                $converter->addConverterType(new EntityConverter($pane->type), $converter_key);
               }
 
-              $converter->addObject($context, $converter_key);
+              $converter->addObject($pane->configuration, $converter_key);
+            }
+          }
+
+          // Update contexts
+          if (!empty($pane->contexts)) {
+            foreach ($pane->contexts as $context) {
+              if ($matches = panelizer_deploy_get_entity_ids_from_context($context)) {
+                $converter_key = "context-entity-{$matches[1]}";
+                try {
+                  $converter->getConverterType($converter_key);
+                } catch (ConverterException $e) {
+                  $converter->addConverterType(new EntityContextConverter($matches[1]), $converter_key);
+                }
+
+                $converter->addObject($context, $converter_key);
+              }
             }
           }
         }
@@ -306,22 +307,25 @@ function panelizer_deploy_entity_uuid_presave(&$entity, $entity_type) {
 
     // Go back and update the keys
     foreach ($entity->panelizer as &$view_mode) {
+      if ($view_mode->display->did && $view_mode->display->did !== 'new') {
       // Update the ids
-      $allowed_keys = array();
-      foreach ($view_mode->display->content as &$pane) {
-        $view_mode->display->content[$pane->pid] = $pane;
-        $allowed_keys[] = $pane->pid;
-      }
+        $allowed_keys = array();
 
-      // Update the panels
-      foreach ($view_mode->display->panels as &$panel) {
-        foreach ($panel as &$uuid) {
-          $uuid = $view_mode->display->content[$uuid]->pid;
+        foreach ($view_mode->display->content as &$pane) {
+          $view_mode->display->content[$pane->pid] = $pane;
+          $allowed_keys[] = $pane->pid;
         }
-      }
 
-      // We only want the id keys
-      $view_mode->display->content = array_intersect_key($view_mode->display->content, array_flip($allowed_keys));
+        // Update the panels
+        foreach ($view_mode->display->panels as &$panel) {
+          foreach ($panel as &$uuid) {
+            $uuid = $view_mode->display->content[$uuid]->pid;
+          }
+        }
+
+        // We only want the id keys
+        $view_mode->display->content = array_intersect_key($view_mode->display->content, array_flip($allowed_keys));
+      }
     }
   }
 }

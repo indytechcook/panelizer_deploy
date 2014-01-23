@@ -35,6 +35,7 @@ class DisplayConverter extends AbstractConverter implements ConverterInterface {
    *   array of uuid => id
    */
   protected function convertIds($uuids) {
-    return $this->queryHelper("panels_display", 'uuid', 'did', $uuids);
+    $return = $this->queryHelper("panels_display", 'uuid', 'did', $uuids);
+    return $return;
   }
 }

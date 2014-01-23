@@ -8,10 +8,9 @@ class PaneEntityConverter extends EntityConverter implements ConverterInterface 
    * tracking of ids and references
    *
    * @param $objects array
-   * @param $key_field
    * @return array
    */
-  protected function preConvert(&$objects, $key_field) {
+  protected function preConvert(&$objects) {
     if (!is_array($objects)) {
       $things = array(&$objects);
     } else {

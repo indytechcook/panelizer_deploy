@@ -33,6 +33,7 @@ class PaneConverter extends AbstractConverter implements ConverterInterface {
    *   array of uuid => id
    */
   protected function convertIds($uuids) {
-    return $this->queryHelper("panels_pane", 'uuid', 'pid', $uuids);
+    $return = $this->queryHelper("panels_pane", 'uuid', 'pid', $uuids);
+    return $return;
   }
 }
