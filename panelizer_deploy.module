@@ -161,7 +161,6 @@ function panelizer_deploy_entity_uuid_load(&$entities, $entity_type) {
 
           foreach ($view_mode->display->content as $pid => &$pane) {
             // uuid pane and display
-            // uuid pane and display
             $converter->addObject($pane, 'panels_pane');
             $converter->addObject($pane, 'panels_display');
 
@@ -210,8 +209,8 @@ function panelizer_deploy_entity_uuid_load(&$entities, $entity_type) {
 
           // Update the panels
           foreach ($view_mode->display->panels as &$panel) {
-            foreach ($panel as &$pid) {
-              $pid = $view_mode->display->content[$pid]->uuid;
+            foreach ($panel as &$panel_pid) {
+              $panel_pid = $view_mode->display->content[$panel_pid]->uuid;
             }
           }
 
@@ -246,6 +245,7 @@ function panelizer_deploy_entity_uuid_presave(&$entity, $entity_type) {
     $entity_keys = array_keys($info);
 
     foreach ($entity->panelizer as &$view_mode) {
+      dd($view_mode);
       $converter->addObject($view_mode, $main_entity_converter_key);
 
       if (isset($view_mode->revision_id) && isset($info[$entity_type]['entity keys']['revision'])) {
@@ -256,7 +256,7 @@ function panelizer_deploy_entity_uuid_presave(&$entity, $entity_type) {
       if ($view_mode->display->did && $view_mode->display->did !== 'new') {
 
         // If the did is empty then we need to unset the name so panelizer will save the custom display
-        $view_mode->name = null;
+        $view_mode->name = NULL;
         // Need the display_is_modified property set in order for panelizer to update the displays
         $view_mode->display_is_modified = TRUE;
 
@@ -308,7 +308,7 @@ function panelizer_deploy_entity_uuid_presave(&$entity, $entity_type) {
     // Go back and update the keys
     foreach ($entity->panelizer as &$view_mode) {
       if ($view_mode->display->did && $view_mode->display->did !== 'new') {
-      // Update the ids
+        // Update the ids
         $allowed_keys = array();
 
         foreach ($view_mode->display->content as &$pane) {
