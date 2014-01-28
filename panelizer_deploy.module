@@ -245,7 +245,6 @@ function panelizer_deploy_entity_uuid_presave(&$entity, $entity_type) {
     $entity_keys = array_keys($info);
 
     foreach ($entity->panelizer as &$view_mode) {
-      dd($view_mode);
       $converter->addObject($view_mode, $main_entity_converter_key);
 
       if (isset($view_mode->revision_id) && isset($info[$entity_type]['entity keys']['revision'])) {
@@ -311,7 +310,13 @@ function panelizer_deploy_entity_uuid_presave(&$entity, $entity_type) {
         // Update the ids
         $allowed_keys = array();
 
+        $i = 1;
         foreach ($view_mode->display->content as &$pane) {
+          if (empty($pane->pid)) {
+            $pane->pid = "new-{$i}";
+            $i++;
+          }
+
           $view_mode->display->content[$pane->pid] = $pane;
           $allowed_keys[] = $pane->pid;
         }
