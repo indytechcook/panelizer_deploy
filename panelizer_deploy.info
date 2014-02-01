@@ -3,7 +3,6 @@ description = Panelizer integration with the deploy
 core = 7.x
 dependencies[] = panelizer
 dependencies[] = xautoload (4.x)
-dependencies[] = uuid
 php = 5.3
 
 files[] = src/AbstractConverter.php
